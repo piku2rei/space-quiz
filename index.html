@@ -522,6 +522,13 @@
       letter-spacing: -0.05em;
     }
 
+    .personal-best {
+      margin: 0 0 12px;
+      color: var(--mint);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
     .result-copy {
       max-width: 360px;
       margin: 0 auto 25px;
@@ -683,6 +690,7 @@
         <p class="eyebrow">Mission complete</p>
         <h2 id="result-title">Stellar work!</h2>
         <p id="result-score" class="result-score"></p>
+        <p id="personal-best" class="personal-best" role="status" aria-live="polite"></p>
         <p id="result-copy" class="result-copy"></p>
         <button id="restart" class="restart" type="button">Launch another round ↗</button>
       </div>
@@ -767,13 +775,25 @@
     const resultEmoji = document.querySelector("#result-emoji");
     const resultTitle = document.querySelector("#result-title");
     const resultScore = document.querySelector("#result-score");
+    const personalBestLabel = document.querySelector("#personal-best");
     const resultCopy = document.querySelector("#result-copy");
     const restartButton = document.querySelector("#restart");
 
+    const personalBestKey = "orbit-academy-personal-best";
     let currentQuestion = 0;
     let score = 0;
     let locked = false;
     let nextTimer;
+
+    function readPersonalBest() {
+      const storedScore = window.localStorage.getItem(personalBestKey);
+      if (storedScore === null || !/^\d+$/.test(storedScore)) return null;
+
+      const bestScore = Number(storedScore);
+      return Number.isInteger(bestScore) && bestScore >= 0 && bestScore <= questions.length
+        ? bestScore
+        : null;
+    }
 
     function renderQuestion() {
       const item = questions[currentQuestion];
@@ -836,6 +856,33 @@
       results.classList.toggle("celebrating", celebrating);
       resultConfetti.hidden = !celebrating;
       resultScore.textContent = `${score} / ${questions.length}`;
+
+      let personalBest;
+      try {
+        personalBest = readPersonalBest();
+      } catch {
+        personalBestLabel.textContent = "Personal best is unavailable because browser storage could not be accessed.";
+      }
+
+      if (personalBest !== undefined) {
+        const isNewBest = personalBest === null || score > personalBest;
+        if (isNewBest) {
+          try {
+            window.localStorage.setItem(personalBestKey, String(score));
+            personalBest = score;
+          } catch {
+            personalBestLabel.textContent = personalBest === null
+              ? "Personal best could not be saved in this browser."
+              : `Personal best: ${personalBest} / ${questions.length} (this score could not be saved).`;
+          }
+        }
+
+        if (!isNewBest) {
+          personalBestLabel.textContent = `Personal best: ${personalBest} / ${questions.length}`;
+        } else if (personalBest === score) {
+          personalBestLabel.textContent = `Personal best: ${personalBest} / ${questions.length} — new record!`;
+        }
+      }
 
       if (score === questions.length) {
         resultEmoji.textContent = "🏆";
